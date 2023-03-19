@@ -1,0 +1,23 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:15.2
+    restart: always
+    volumes:
+      - ./db:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_USER: user
+      POSTGRES_DB: db
+
+  api:
+    build: 
+      context: .
+      target: build-stage
+    ports:
+      - '8000:8000'
+    volumes:
+      - ./chatter:/app/chatter
+    command: bash -c 'while !</dev/tcp/db/5432; do sleep 1; done; uvicorn chatter.main:app --host 0.0.0.0'

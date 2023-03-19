@@ -1,0 +1,7 @@
+.mypy_cache
+.coverage
+htmlcov
+.venv
+.env
+__pycache__
+.vscode
