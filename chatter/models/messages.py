@@ -14,7 +14,7 @@ class Messages(Model):
     id = fields.UUIDField(pk=True)
     content = fields.CharField(max_length=4096)
     role = fields.CharEnumField(Role)
-    chat = fields.ForeignKeyField("models.Chats", related_name="messages")
+    chat = fields.ForeignKeyField("models.Chats", related_name="messages", null=True)
 
 
 Message_Pydantic = pydantic_model_creator(Messages, name="Message")

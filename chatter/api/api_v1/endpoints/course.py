@@ -1,5 +1,6 @@
 from chatter.models.courses import Course_Pydantic, Courses
 from fastapi import APIRouter
+from uuid import UUID
 
 router = APIRouter()
 
@@ -10,5 +11,5 @@ async def course_list():
 
 
 @router.get("/{course_id}", response_model=Course_Pydantic)
-async def course_detail(course_id: int):
+async def course_detail(course_id: UUID):
     return await Course_Pydantic.from_queryset_single(Courses.get(id=course_id))

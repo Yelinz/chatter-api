@@ -37,9 +37,9 @@ force_grid_wrap = 0
 line_length = 88
 
 [tool.aerich]
-tortoise_orm = "core.config.TORTOISE_ORM"
+tortoise_orm = "chatter.core.config.TORTOISE_ORM"
 location = "./chatter/models/migrations"
-src_folder = "./chatter/."
+src_folder = "./"
 
 [build-system]
 requires = ["poetry>=0.12"]

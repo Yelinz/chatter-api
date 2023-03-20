@@ -7,6 +7,7 @@ from fastapi import APIRouter, File, UploadFile, Form
 import asyncio
 import whisper
 import torchaudio
+from uuid import UUID
 
 router = APIRouter()
 
@@ -23,20 +24,21 @@ AZURE_HEADERS = {
 }
 
 
-@router.post("/", response_model=Chat_Pydantic)
-async def chat_create(course: Course_Pydantic):
-    # TODO: add user relation
-    chat_obj = await Chats.create(**course.dict(exclude_unset=True))
-    return await Chat_Pydantic.from_tortoise_orm(chat_obj)
+@router.post("/", response_model=Chat_Pydantic, status_code=201)
+async def chat_create(course_id: UUID):
+    chat_obj = await Chats.create(
+        course_id=course_id, user_id=UUID("891b80aa-61ec-4ee0-b6bd-4e142632a8ab")
+    )
+    return chat_obj
 
 
-@router.get("/{chat_id}}", response_model=Chat_Pydantic)
-async def chat_detail(chat_id: int):
+@router.get("/{chat_id}", response_model=Chat_Pydantic)
+async def chat_detail(chat_id: UUID):
     return await Chat_Pydantic.from_queryset_single(Chats.get(id=chat_id))
 
 
 @router.post("/{chat_id}/new-message")
-async def chat_completion(chat_id: int, file: UploadFile = File()):
+async def chat_completion(chat_id: UUID, file: UploadFile):
     """
     1. speech to text: whisper
     2. text moderation: openai endpoint
@@ -46,9 +48,9 @@ async def chat_completion(chat_id: int, file: UploadFile = File()):
     return completion, tts and suggestion
     """
 
-    # TODO: file to ndarray or tensor
-    tensor = torchaudio.load(await file.read())
-    result = await model.transcribe(tensor)
+    # TODO: error with SpooledTemporaryFile in sox_io_backend.py
+    waveform, sample_rate = torchaudio.load(file.file)
+    result = await model.transcribe(waveform)
     transcript = result["text"]
 
     moderation_response = await requests.post(
@@ -97,8 +99,8 @@ async def chat_completion(chat_id: int, file: UploadFile = File()):
     return chat.messages
 
 
-@router.get("/{chat_id}/rating")
-async def chat_message_detail(chat_id: int, rating: int):
+@router.post("/{chat_id}/rating", response_model=Chat_Pydantic)
+async def chat_message_detail(chat_id: UUID, rating: int):
     chat = await Chat_Pydantic.from_queryset_single(Chats.get(id=chat_id))
     chat.rating = rating
     await chat.save()
