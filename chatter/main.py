@@ -4,9 +4,13 @@ from tortoise.contrib.fastapi import HTTPNotFoundError, register_tortoise
 
 from chatter.api.api_v1.api import api_router
 from chatter.core.config import settings
+from chatter.core.http_clients import Clients
 
 app = FastAPI(
-    title=settings.PROJECT_NAME, openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    title=settings.PROJECT_NAME,
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    on_startup=[Clients.start_clients],
+    on_shutdown=[Clients.close_clients],
 )
 
 # Set all CORS enabled origins

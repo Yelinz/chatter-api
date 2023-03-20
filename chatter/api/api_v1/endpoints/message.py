@@ -1,6 +1,8 @@
-from chatter.models.messages import Message_Pydantic, Messages
-from fastapi import APIRouter
 from uuid import UUID
+
+from fastapi import APIRouter
+
+from chatter.models.messages import Message_Pydantic, Messages
 
 router = APIRouter()
 

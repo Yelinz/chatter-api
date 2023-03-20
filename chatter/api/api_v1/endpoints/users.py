@@ -1,8 +1,11 @@
-from fastapi import APIRouter
-from chatter.models.users import User_Pydantic, Users
 from uuid import UUID
 
+from fastapi import APIRouter
+
+from chatter.models.users import User_Pydantic, Users
+
 router = APIRouter()
+
 
 @router.get("/{user_id}", response_model=User_Pydantic)
 async def user_detail(user_id: UUID):

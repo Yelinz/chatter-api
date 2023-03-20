@@ -1,6 +1,8 @@
-from chatter.models.courses import Course_Pydantic, Courses
-from fastapi import APIRouter
 from uuid import UUID
+
+from fastapi import APIRouter
+
+from chatter.models.courses import Course_Pydantic, Courses
 
 router = APIRouter()
 

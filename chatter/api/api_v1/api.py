@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from chatter.api.api_v1.endpoints import login, users, chat, course, message
+from chatter.api.api_v1.endpoints import chat, course, login, message, users
 
 api_router = APIRouter()
 api_router.include_router(login.router, tags=["login"])

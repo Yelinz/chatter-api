@@ -1,9 +1,8 @@
 from datetime import datetime, timedelta
 from typing import Any, Union
 
-from jose import jwt
-
 from core.config import settings
+from jose import jwt
 
 ALGORITHM = "HS256"
 
