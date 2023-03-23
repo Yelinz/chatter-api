@@ -6,6 +6,7 @@ RUN pip install poetry
 
 COPY ./pyproject.toml ./poetry.lock* /tmp/
 
+# Convert poetry lock file to requirements.txt
 RUN poetry export -f requirements.txt --output requirements.txt --without-hashes
 
 FROM requirements-stage as build-stage

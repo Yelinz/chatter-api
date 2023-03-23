@@ -2,6 +2,10 @@
 
 FastAPI, Tortoise ORM
 
+Horrible problem with tortoise orm with reverse relations
+https://github.com/tortoise/tortoise-orm/issues/709
+probably never use it again and rather use sqlalchemy
+
 # Requirements
 Python 3.10
 docker compose

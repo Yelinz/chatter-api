@@ -45,6 +45,8 @@ class Settings(BaseSettings):
 
     TORTOISE_ORM = TORTOISE_ORM
 
+    ENABLE_MODERATION: bool = False
+
     class Config:
         case_sensitive = True
         env_file = ".env"

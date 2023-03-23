@@ -1,5 +1,6 @@
 import aiohttp
-from fastapi import logger
+
+from chatter.core.config import settings
 
 OPENAI_HEADERS = {
     "Authorization": "Bearer " + settings.OPENAI_API_KEY,
@@ -11,15 +12,16 @@ AZURE_HEADERS = {
     "X-Microsoft-OutputForma": "audio-16khz-128kbitrate-mono-mp3",
 }
 
+
 class Clients:
     openai: aiohttp.ClientSession | None = None
 
     @classmethod
     async def start_clients(self) -> None:
-        logger.info("Starting aiohttp clients")
-        self.openai_client = aiohttp.ClientSession(base_url="https://api.openai.com" ,headers=OPENAI_HEADERS)
+        self.openai = aiohttp.ClientSession(
+            base_url="https://api.openai.com", headers=OPENAI_HEADERS
+        )
 
     @classmethod
     async def close_clients(self) -> None:
-        logger.info("Stopping aiohttp clients")
-        await self.openai_client.close()
+        await self.openai.close()

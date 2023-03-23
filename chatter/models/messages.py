@@ -16,13 +16,7 @@ class Messages(Model):
     content = fields.CharField(max_length=4096)
     role = fields.CharEnumField(Role)
     chat = fields.ForeignKeyField("models.Chats", related_name="messages", null=True)
-
-    @property
-    def serialized(self):
-        return {
-            "content": self.content,
-            "role": self.role,
-        }
+    created_at = fields.DatetimeField(auto_now_add=True)
 
 
 Message_Pydantic = pydantic_model_creator(Messages, name="Message")
