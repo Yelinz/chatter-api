@@ -64,6 +64,20 @@ async def audio_to_text(file: UploadFile) -> str:
     return result["text"]
 
 
+async def text_to_audio(text: str) -> bytes:
+    async with Clients.azure.post(
+        "switzerlandnorth.tts.speech.microsoft.com/cognitiveservices/v1",
+        body=f"""
+                '<speak version='\''1.0'\'' xml:lang='\''en-US'\''>
+                    <voice xml:lang='\''en-US'\'' xml:gender='\''Female'\'' name='\''en-US-JennyNeural'\''>
+                    {text}
+                    </voice>
+                </speak>'
+            """,
+    ) as response:
+        return await response.read()
+
+
 @router.post("/{chat_id}/new-message")
 async def chat_completion(chat_id: UUID, file: UploadFile):
     """
@@ -85,22 +99,23 @@ async def chat_completion(chat_id: UUID, file: UploadFile):
 
             if moderation_response["results"][0]["flagged"]:
                 return "TODO: moderation error"
-
+    """
     chat = await Chats.get(id=chat_id)
     chat = await Chat_Pydantic.from_tortoise_orm(chat)
-    """
     messages = await Message_Pydantic.from_queryset(chat.messages.all())
     print(messages)
     """
-    print(chat.dict())
-    messages = chat.serialized_messages
+    chat = Chat_Pydantic.from_queryset(Chats.get(id=chat_id))
+    messages_json = [
+        Message_Pydantic.from_queryset(m).dict(by_alias=True) for m in chat.messages
+    ]
+    print(messages_json)
 
-    print(messages)
     async with Clients.openai.post(
         "/v1/chat/completions",
         json={
             "model": "gpt-3.5-turbo",
-            "messages": messages,
+            "messages": messages_json,
             "max_tokens": 2000,
             "temperature": 1,
             "top_p": 1,
@@ -117,19 +132,10 @@ async def chat_completion(chat_id: UUID, file: UploadFile):
     results = await asyncio.gather(
         Messages.create(chat=chat, text=transcript, role="user"),
         Messages.create(chat=chat, text=completion_text, role="assistant"),
-        requests.post(
-            "switzerlandnorth.tts.speech.microsoft.com/cognitiveservices/v1",
-            body="""
-                '<speak version='\''1.0'\'' xml:lang='\''en-US'\''>
-                    <voice xml:lang='\''en-US'\'' xml:gender='\''Female'\'' name='\''en-US-JennyNeural'\''>
-                    {completion_text}
-                    </voice>
-                </speak>'
-            """,
-        ),
+        text_to_audio(completion_text),
     )
 
-    return chat.messages
+    return results
 
 
 @router.post("/{chat_id}/rating", response_model=Chat_Pydantic)
