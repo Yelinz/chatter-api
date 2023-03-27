@@ -12,22 +12,23 @@ from chatter.core.http_clients import Clients
 from chatter.models.chats import Chat_Pydantic, Chats
 from chatter.models.courses import Course_Pydantic
 from chatter.models.messages import Message_Pydantic, Messages
+from chatter.schemas.completion import Completion_Response
 
 router = APIRouter()
 
-model = whisper.load_model("tiny")  # TODO: probably use large later
+model = whisper.load_model("tiny")  # TODO: use large later
 
 
-@router.post("/", response_model=Chat_Pydantic, status_code=201)
-async def chat_create(course_id: UUID):
+@router.post("/", status_code=201)
+async def chat_create(course_id: UUID) -> Chat_Pydantic:
     chat_obj = await Chats.create(
         course_id=course_id, user_id=UUID("891b80aa-61ec-4ee0-b6bd-4e142632a8ab")
     )
     return chat_obj
 
 
-@router.get("/{chat_id}", response_model=Chat_Pydantic)
-async def chat_detail(chat_id: UUID):
+@router.get("/{chat_id}")
+async def chat_detail(chat_id: UUID) -> Chat_Pydantic:
     return await Chat_Pydantic.from_queryset_single(Chats.get(id=chat_id))
 
 
@@ -58,7 +59,7 @@ async def audio_to_text(file: UploadFile) -> str:
     ndarr = np.frombuffer(audio_out, np.int16).flatten().astype(np.float32) / 32768.0
 
     # enable fp16 for faster inference when using a GPU
-    # set language from user setting
+    # set language from user or http
     result = model.transcribe(audio=ndarr, language="en", fp16=False)
 
     return result["text"]
@@ -66,7 +67,7 @@ async def audio_to_text(file: UploadFile) -> str:
 
 async def text_to_audio(text: str) -> bytes:
     async with Clients.azure.post(
-        "switzerlandnorth.tts.speech.microsoft.com/cognitiveservices/v1",
+        "/cognitiveservices/v1",
         body=f"""
                 '<speak version='\''1.0'\'' xml:lang='\''en-US'\''>
                     <voice xml:lang='\''en-US'\'' xml:gender='\''Female'\'' name='\''en-US-JennyNeural'\''>
@@ -79,7 +80,7 @@ async def text_to_audio(text: str) -> bytes:
 
 
 @router.post("/{chat_id}/new-message")
-async def chat_completion(chat_id: UUID, file: UploadFile):
+async def chat_completion(chat_id: UUID, file: UploadFile) -> Completion_Response:
     """
     1. speech to text: whisper
     2. text moderation: openai endpoint
@@ -89,7 +90,7 @@ async def chat_completion(chat_id: UUID, file: UploadFile):
     return completion, tts and suggestion
     """
 
-    transcript = await audio_to_text(file)
+    transcript: str = await audio_to_text(file)
 
     if settings.ENABLE_MODERATION:
         async with Clients.openai.post(
@@ -99,23 +100,21 @@ async def chat_completion(chat_id: UUID, file: UploadFile):
 
             if moderation_response["results"][0]["flagged"]:
                 return "TODO: moderation error"
-    """
+
     chat = await Chats.get(id=chat_id)
-    chat = await Chat_Pydantic.from_tortoise_orm(chat)
+    # await Messages.create(chat=chat, content=transcript, role="user"),
     messages = await Message_Pydantic.from_queryset(chat.messages.all())
-    print(messages)
-    """
-    chat = Chat_Pydantic.from_queryset(Chats.get(id=chat_id))
-    messages_json = [
-        Message_Pydantic.from_queryset(m).dict(by_alias=True) for m in chat.messages
-    ]
-    print(messages_json)
+    serialized_messages = list(
+        map(
+            lambda message: {"content": message.content, "role": message.role}, messages
+        )
+    )
 
     async with Clients.openai.post(
         "/v1/chat/completions",
         json={
             "model": "gpt-3.5-turbo",
-            "messages": messages_json,
+            "messages": serialized_messages,
             "max_tokens": 2000,
             "temperature": 1,
             "top_p": 1,
@@ -127,19 +126,31 @@ async def chat_completion(chat_id: UUID, file: UploadFile):
         completion_response = await response.json()
 
     print(completion_response)
-    completion_text = completion_response["choices"][0]["text"]
+    if "error" in completion_response:
+        # TODO: handle error
+        return completion_response["error"]
+
+    completion_text = completion_response["choices"][0]["message"]["content"]
+
+    translation = completion_text
+    suggestions = [{"text": completion_text, "translation": completion_text}]
 
     results = await asyncio.gather(
-        Messages.create(chat=chat, text=transcript, role="user"),
-        Messages.create(chat=chat, text=completion_text, role="assistant"),
+        Messages.create(chat=chat, content=completion_text, role="assistant"),
         text_to_audio(completion_text),
     )
 
-    return results
+    return {
+        "user_text": transcript,
+        "assistant_text": completion_text,
+        "assistant_translation": translation,
+        "assistant_audio": results[1],
+        "suggestions": suggestions,
+    }
 
 
-@router.post("/{chat_id}/rating", response_model=Chat_Pydantic)
-async def chat_message_detail(chat_id: UUID, rating: int):
+@router.post("/{chat_id}/rating")
+async def chat_message_detail(chat_id: UUID, rating: int) -> Chat_Pydantic:
     chat = await Chat_Pydantic.from_queryset_single(Chats.get(id=chat_id))
     chat.rating = rating
     await chat.save()
